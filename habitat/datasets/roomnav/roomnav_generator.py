@@ -258,6 +258,7 @@ def main():
     difficulty_counts = {}
     allowed_regions = ['bedroom', 'bathroom', 'kitchen', 'living room', 'dining room']
 
+
     scene_count = 0
 
     config = habitat.get_config(config_paths='tasks/pointnav_mp3d.yaml')

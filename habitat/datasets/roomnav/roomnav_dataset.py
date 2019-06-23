@@ -17,14 +17,11 @@ from habitat.tasks.nav.nav_task import (
     RoomGoal,
     ShortestPathPoint,
 )
-# import sys
-# sys.path.insert(0, '/private/home/medhini/navigation-analysis-habitat/RoomNavHabitat/')
-# sys.path.insert(0, '/private/home/medhini/navigation-analysis-habitat/')
 
 ALL_SCENES_MASK = "*"
 CONTENT_SCENES_PATH_FIELD = "content_scenes_path"
 DEFAULT_SCENE_PATH_PREFIX = "data/scene_datasets/"
-ROOT_DIR = "/private/home/medhini/habitat-api/"
+ROOT_DIR = "/private/home/medhini/navigation-analysis-habitat/habitat-api/"
 
 @registry.register_dataset(name="RoomNav-v1")
 class RoomNavDatasetV1(Dataset):

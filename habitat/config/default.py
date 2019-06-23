@@ -8,7 +8,8 @@ from typing import List, Optional, Union
 
 from habitat.config import Config as CN  # type: ignore
 
-DEFAULT_CONFIG_DIR = "configs/"
+
+DEFAULT_CONFIG_DIR = "/private/home/medhini/navigation-analysis-habitat/habitat-api/configs/"
 CONFIG_FILE_SEPARATOR = ","
 
 # -----------------------------------------------------------------------------
@@ -182,7 +183,7 @@ def get_config(
                 config_paths = [config_paths]
 
         for config_path in config_paths:
-            config.merge_from_file(config_path)
+            config.merge_from_file(DEFAULT_CONFIG_DIR+config_path)
 
     if opts:
         config.merge_from_list(opts)
