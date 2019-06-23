@@ -61,6 +61,11 @@ _C.TASK.SPL = CN()
 _C.TASK.SPL.TYPE = "SPL"
 _C.TASK.SPL.SUCCESS_DISTANCE = 0.2
 # -----------------------------------------------------------------------------
+# # ROOMNAVMETRIC MEASUREMENT
+# -----------------------------------------------------------------------------
+_C.TASK.ROOMNAVMETRIC = CN()
+_C.TASK.ROOMNAVMETRIC.TYPE = "RoomNavMetric"
+# -----------------------------------------------------------------------------
 # # TopDownMap MEASUREMENT
 # -----------------------------------------------------------------------------
 _C.TASK.TOP_DOWN_MAP = CN()

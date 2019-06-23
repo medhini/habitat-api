@@ -4,7 +4,7 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 
-from typing import Any, List, Optional, Type
+from typing import Any, List, Optional, Type, Tuple
 
 import attr
 import cv2
@@ -26,6 +26,7 @@ from habitat.core.utils import not_none_validator
 from habitat.tasks.utils import cartesian_to_polar, quaternion_rotate_vector
 from habitat.utils.visualizations import maps
 
+COLLISION_PROXIMITY_TOLERANCE: float = 1e-3
 MAP_THICKNESS_SCALAR: int = 1250
 
 
@@ -75,10 +76,9 @@ class ObjectGoal(NavigationGoal):
 class RoomGoal(NavigationGoal):
     r"""Room goal that can be specified by room_id or position with radius.
     """
-
-    room_id: str = attr.ib(default=None, validator=not_none_validator)
+    room_aabb: Tuple[float] = attr.ib(default=None, validator=not_none_validator)
+    # room_id: str = attr.ib(default=None, validator=not_none_validator)
     room_name: Optional[str] = None
-
 
 @attr.s(auto_attribs=True, kw_only=True)
 class NavigationEpisode(Episode):
@@ -104,6 +104,29 @@ class NavigationEpisode(Episode):
     start_room: Optional[str] = None
     shortest_paths: Optional[List[ShortestPathPoint]] = None
 
+@attr.s(auto_attribs=True, kw_only=True)
+class RoomNavigationEpisode(Episode):
+    r"""Class for episode specification that includes initial position and
+    rotation of agent, scene name, goal and optional shortest paths. An
+    episode is a description of one task instance for the agent.
+
+    Args:
+        episode_id: id of episode in the dataset, usually episode number
+        scene_id: id of scene in scene dataset
+        start_position: numpy ndarray containing 3 entries for (x, y, z)
+        start_rotation: numpy ndarray with 4 entries for (x, y, z, w)
+            elements of unit quaternion (versor) representing agent 3D
+            orientation. ref: https://en.wikipedia.org/wiki/Versor
+        goals: list of goals specifications
+        start_room: room id
+        shortest_paths: list containing shortest paths to goals
+    """
+
+    goals: List[RoomGoal] = attr.ib(
+        default=None, validator=not_none_validator
+    )
+    start_room: Optional[str] = None
+    shortest_paths: Optional[List[ShortestPathPoint]] = None
 
 @registry.register_sensor
 class PointGoalSensor(Sensor):
@@ -170,6 +193,71 @@ class PointGoalSensor(Sensor):
 
         return direction_vector_agent
 
+
+@registry.register_sensor
+class RoomGoalSensor(Sensor):
+    r"""Sensor for RoomGoal observations which are used in the RoomNav task.
+    For the agent in simulator the forward direction is along negative-z.
+    In polar coordinate format the angle returned is azimuth to the goal.
+
+    Args:
+        sim: reference to the simulator for calculating task observations.
+        config: config for the RoomGoal sensor. Can contain field for
+            GOAL_FORMAT which can be used to specify the format in which
+            the roomgoal is specified. Current options for goal format are
+            cartesian and polar.
+
+    Attributes:
+        _goal_format: format for specifying the goal which can be done
+            in cartesian or polar coordinates.
+    """
+
+    def __init__(self, sim: Simulator, config: Config):
+        self._sim = sim
+
+        self._goal_format = getattr(config, "GOAL_FORMAT", "CARTESIAN")
+        assert self._goal_format in ["CARTESIAN", "POLAR"]
+
+        super().__init__(config=config)
+
+    def _get_uuid(self, *args: Any, **kwargs: Any):
+        return "roomgoal"
+
+    def _get_sensor_type(self, *args: Any, **kwargs: Any):
+        return SensorTypes.PATH
+
+    def _get_observation_space(self, *args: Any, **kwargs: Any):
+        if self._goal_format == "CARTESIAN":
+            sensor_shape = (3,)
+        else:
+            sensor_shape = (2,)
+        return spaces.Box(
+            low=np.finfo(np.float32).min,
+            high=np.finfo(np.float32).max,
+            shape=sensor_shape,
+            dtype=np.float32,
+        )
+
+    def get_observation(self, observations, episode):
+        agent_state = self._sim.get_agent_state()
+        ref_position = agent_state.position
+        rotation_world_agent = agent_state.rotation
+
+        direction_vector = (
+            np.array(episode.goals[0].position, dtype=np.float32)
+            - ref_position
+        )
+        direction_vector_agent = quaternion_rotate_vector(
+            rotation_world_agent.inverse(), direction_vector
+        )
+
+        if self._goal_format == "POLAR":
+            rho, phi = cartesian_to_polar(
+                -direction_vector_agent[2], direction_vector_agent[0]
+            )
+            direction_vector_agent = np.array([rho, -phi], dtype=np.float32)
+
+        return direction_vector_agent
 
 @registry.register_sensor
 class StaticPointGoalSensor(Sensor):
@@ -376,6 +464,78 @@ class SPL(Measure):
             )
         )
 
+@registry.register_measure
+class RoomNavMetric(Measure):
+    r"""RoomNavMetric - SPL but for RoomNav
+    """
+    def __init__(self, sim: Simulator, config: Config):
+        self._previous_position = None
+        self._start_end_episode_distance = None
+        self._agent_episode_distance = None
+        self._sim = sim
+        self._config = config
+
+        # print('Using room nav metric!')
+
+        super().__init__()
+
+    def _get_uuid(self, *args: Any, **kwargs: Any):
+        return "roomnavmetric"
+
+    def reset_metric(self, episode):
+        self._previous_position = self._sim.get_agent_state().position.tolist()
+        self._start_end_episode_distance = episode.info["geodesic_distance"]
+        self._agent_episode_distance = 0.0
+        self._metric = None
+
+    def _euclidean_distance(self, position_a, position_b):
+        return np.linalg.norm(
+            np.array(position_b) - np.array(position_a), ord=2
+        )
+
+    def in_room(self, position, room_aabb):
+        if (
+            position[0] > room_aabb[0] and position[2] > room_aabb[1] 
+            and position[0] < room_aabb[2] and position[2] < room_aabb[3]
+        ):
+            # print(position, room_aabb)
+            return True
+
+        return False
+
+    def update_metric(self, episode, action):
+        ep_success = 0
+        current_position = self._sim.get_agent_state().position.tolist()
+
+        
+        distance_to_target = self._sim.geodesic_distance(
+            current_position, episode.goals[0].position
+        )
+
+        if (
+            action == self._sim.index_stop_action
+            and self.in_room(current_position, episode.goals[0].room_aabb)
+        ):
+            # print(self._start_end_episode_distance, episode.start_room, episode.goals[0].room_name)
+            self._start_end_episode_distance = self._sim.geodesic_distance(
+            episode.start_position, current_position)
+            # print('SUCCESS!!!')
+            ep_success = 1
+            # print(episode.start_position, current_position)   
+            # print(self._start_end_episode_distance)
+
+        self._agent_episode_distance += self._euclidean_distance(
+            current_position, self._previous_position
+        )
+
+        self._previous_position = current_position
+
+        self._metric = ep_success * (
+            self._start_end_episode_distance
+            / max(
+                self._start_end_episode_distance, self._agent_episode_distance
+            )
+        )
 
 @registry.register_measure
 class Collisions(Measure):
@@ -395,7 +555,12 @@ class Collisions(Measure):
         if self._metric is None:
             self._metric = 0
 
-        if self._sim.previous_step_collided:
+        current_position = self._sim.get_agent_state().position
+        if (
+            action == self._sim.index_forward_action
+            and self._sim.distance_to_closest_obstacle(current_position)
+            < COLLISION_PROXIMITY_TOLERANCE
+        ):
             self._metric += 1
 
 
