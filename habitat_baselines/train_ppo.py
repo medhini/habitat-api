@@ -349,6 +349,7 @@ def run_training():
 
         # checkpoint model
         if update % args.checkpoint_interval == 0:
+            print('WRITING CHECKPOINT:', args.checkpoint_folder)
             checkpoint = {"state_dict": agent.state_dict()}
             torch.save(
                 checkpoint,

@@ -9,6 +9,7 @@ from multiprocessing.connection import Connection
 from queue import Queue
 from threading import Thread
 from typing import Any, Callable, Iterable, List, Optional, Set, Tuple, Union
+import sys
 
 import gym
 import numpy as np
@@ -20,6 +21,8 @@ from habitat.core.env import Env, Observations
 from habitat.core.logging import logger
 from habitat.core.utils import tile_images
 
+sys.path.insert(0, '/private/home/medhini/navigation-analysis-habitat')
+
 STEP_COMMAND = "step"
 RESET_COMMAND = "reset"
 RENDER_COMMAND = "render"
@@ -27,7 +30,7 @@ CLOSE_COMMAND = "close"
 OBSERVATION_SPACE_COMMAND = "observation_space"
 ACTION_SPACE_COMMAND = "action_space"
 CALL_COMMAND = "call"
-
+EPISODE_COMMAND = "current_episode"
 
 def _make_env_fn(
     config: Config, dataset: Optional[habitat.Dataset] = None, rank: int = 0
@@ -186,6 +189,9 @@ class VectorEnv:
                     else:
                         result = getattr(env, function_name)(*function_args)
                     connection_write_fn(result)
+
+                elif command == EPISODE_COMMAND:
+                    connection_write_fn(env.current_episode)
                 else:
                     raise NotImplementedError
 
@@ -230,6 +236,16 @@ class VectorEnv:
             [p.recv for p in parent_connections],
             [p.send for p in parent_connections],
         )
+        
+    def current_episodes(self):
+        self._is_waiting = True
+        for write_fn in self._connection_write_fns:
+            write_fn((EPISODE_COMMAND, None))
+        results = []
+        for read_fn in self._connection_read_fns:
+            results.append(read_fn())
+        self._is_waiting = False
+        return results
 
     def reset(self):
         r"""Reset all the vectorized environments

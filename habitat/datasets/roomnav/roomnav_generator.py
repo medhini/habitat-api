@@ -225,7 +225,7 @@ def generate_roomnav_episode(sim, episode_id, regions, level_y_bounds, is_gen_sh
                 )
                 return episode
 
-def get_mp3d_scenes(split: str = "train", scene_template: str = "{scene}") -> List[str]:
+def get_mp3d_scenes(split: str = "test", scene_template: str = "{scene}") -> List[str]:
     scenes = []
     with open('scenes_mp3d.csv', newline='') as csvfile:
         spamreader = csv.DictReader(csvfile, delimiter=',', quotechar='|')
@@ -237,14 +237,14 @@ def get_mp3d_scenes(split: str = "train", scene_template: str = "{scene}") -> Li
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--seed', default=73, type=int)
-    parser.add_argument('--count-points', default=1000, type=int)
+    parser.add_argument('--count-points', default=500, type=int)
     parser.add_argument('--split', default="test", type=str)
     parser.add_argument('--output-path',
-                        default="/private/home/medhini/navigation-analysis-habitat/RoomNavHabitat/data/datasets/roomnav/mp3d/v1/test/test",
+                        default="/private/home/medhini/navigation-analysis-habitat/habitat-api/data/datasets/roomnav/mp3d/v1/test/test",
                         type=str)
     parser.add_argument('-g', '--gpu', default=0, type=int)
     parser.add_argument('--scene-path', type=str,
-                        default="/private/home/medhini/navigation-analysis-habitat/RoomNavHabitat/data/scene_datasets/mp3d/{scene}/{scene}.glb")
+                        default="/private/home/medhini/navigation-analysis-habitat/habitat-api/data/scene_datasets/mp3d/{scene}/{scene}.glb")
     args = parser.parse_args()
 
     os.environ["CUDA_VISIBLE_DEVICES"] = str(args.gpu)
@@ -258,18 +258,17 @@ def main():
     difficulty_counts = {}
     allowed_regions = ['bedroom', 'bathroom', 'kitchen', 'living room', 'dining room']
 
-
     scene_count = 0
 
     config = habitat.get_config(config_paths='tasks/pointnav_mp3d.yaml')
     config.defrost()
-    config.DATASET.POINTNAVV1.DATA_PATH = '/private/home/medhini/mp3d_dummy/test/test.json.gz'
-    config.DATASET.SCENES_DIR = '/private/home/medhini/navigation-analysis-habitat/RoomNavHabitat/data/scene_datasets/'
+    config.DATASET.DATA_PATH = '/private/home/medhini/mp3d_dummy/test/test.json.gz'
+    config.DATASET.SCENES_DIR = '/private/home/medhini/navigation-analysis-habitat/habitat-api/data/scene_datasets/'
     config.freeze()
 
     env = habitat.Env(config=config)
 
-    # roomnav_scenes = {'val':4, 'train':32, 'test':10}
+    roomnav_scenes = {'val':4, 'train':32, 'test':10}
 
     for i in range(len(env.episodes)):
         obs = env.reset()
@@ -304,8 +303,8 @@ def main():
                     regions[region.id]['type'] = region.category.name()
 
             # print(regions)
-            # for episode_id in range(round(args.count_points / roomnav_scenes[args.split])):
-            for episode_id in range(round(args.count_points / len(scenes))):
+            for episode_id in range(round(args.count_points / roomnav_scenes[args.split])):
+            # for episode_id in range(round(args.count_points / len(scenes))):
                 # print('EPISODE ID: ', episode_id)
                 episode = generate_roomnav_episode(env.sim, episode_id, regions, level_y_bounds)
                 # if episode is not None:

@@ -8,6 +8,7 @@ import gzip
 import json
 import os
 from typing import List, Optional
+import sys
 
 from habitat.config import Config
 from habitat.core.dataset import Dataset
@@ -21,7 +22,7 @@ from habitat.tasks.nav.nav_task import (
 ALL_SCENES_MASK = "*"
 CONTENT_SCENES_PATH_FIELD = "content_scenes_path"
 DEFAULT_SCENE_PATH_PREFIX = "data/scene_datasets/"
-
+ROOT_DIR = "/private/home/medhini/navigation-analysis-habitat/habitat-api/"
 
 @registry.register_dataset(name="PointNav-v1")
 class PointNavDatasetV1(Dataset):
@@ -34,8 +35,8 @@ class PointNavDatasetV1(Dataset):
     @staticmethod
     def check_config_paths_exist(config: Config) -> bool:
         return os.path.exists(
-            config.DATA_PATH.format(split=config.SPLIT)
-        ) and os.path.exists(config.SCENES_DIR)
+            ROOT_DIR + config.DATA_PATH.format(split=config.SPLIT)
+        ) and os.path.exists(ROOT_DIR + config.SCENES_DIR)
 
     @staticmethod
     def get_scenes_to_load(config: Config) -> List[str]:
@@ -44,7 +45,7 @@ class PointNavDatasetV1(Dataset):
         """
         assert PointNavDatasetV1.check_config_paths_exist(config)
         dataset_dir = os.path.dirname(
-            config.DATA_PATH.format(split=config.SPLIT)
+            ROOT_DIR + config.DATA_PATH.format(split=config.SPLIT)
         )
 
         cfg = config.clone()
@@ -79,7 +80,7 @@ class PointNavDatasetV1(Dataset):
             return
 
         datasetfile_path = config.DATA_PATH.format(split=config.SPLIT)
-        with gzip.open(datasetfile_path, "rt") as f:
+        with gzip.open(ROOT_DIR+datasetfile_path, "rt") as f:
             self.from_json(f.read(), scenes_dir=config.SCENES_DIR)
 
         # Read separate file for each scene
@@ -95,7 +96,7 @@ class PointNavDatasetV1(Dataset):
             scene_filename = self.content_scenes_path.format(
                 data_path=dataset_dir, scene=scene
             )
-            with gzip.open(scene_filename, "rt") as f:
+            with gzip.open(ROOT_DIR+scene_filename, "rt") as f:
                 self.from_json(f.read(), scenes_dir=config.SCENES_DIR)
 
         self.sample_episodes(config.NUM_EPISODE_SAMPLE)

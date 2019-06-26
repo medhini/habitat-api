@@ -137,8 +137,8 @@ def main():
 
         for i in range(not_done_masks.shape[0]):
             if not_done_masks[i].item() == 0:
-                episode_spls[i] += infos[i]["spl"]
-                if infos[i]["spl"] > 0:
+                episode_spls[i] += infos[i]["roomnavmetric"]
+                if infos[i]["roomnavmetric"] > 0:
                     episode_success[i] += 1
 
         rewards = torch.tensor(

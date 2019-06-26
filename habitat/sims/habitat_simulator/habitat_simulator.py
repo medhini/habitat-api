@@ -168,6 +168,7 @@ class HabitatSim(Simulator):
         self, _sensor_suite: SensorSuite
     ) -> habitat_sim.Configuration:
         sim_config = habitat_sim.SimulatorConfiguration()
+        # sim_config.scene.id = '/private/home/medhini/navigation-analysis-habitat/habitat-api/' + self.config.SCENE
         sim_config.scene.id = self.config.SCENE
         sim_config.gpu_device_id = self.config.HABITAT_SIM_V0.GPU_DEVICE_ID
         agent_config = habitat_sim.AgentConfiguration()
