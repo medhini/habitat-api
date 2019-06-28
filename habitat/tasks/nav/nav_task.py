@@ -495,8 +495,8 @@ class RoomNavMetric(Measure):
 
     def in_room(self, position, room_aabb):
         if (
-            position[0] > room_aabb[0] and position[2] > room_aabb[1] 
-            and position[0] < room_aabb[2] and position[2] < room_aabb[3]
+            position[0] > room_aabb[0]+0.5 and position[2] > room_aabb[1]+0.5 
+            and position[0] < room_aabb[2]-0.5 and position[2] < room_aabb[3]-0.5
         ):
             # print(position, room_aabb)
             return True
