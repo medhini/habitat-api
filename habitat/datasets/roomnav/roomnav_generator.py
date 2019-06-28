@@ -53,7 +53,8 @@ def is_valid_target(t, regions, level_y_bounds):
 
     if t[1] > level_y_bounds[0] and t[1] < level_y_bounds[1]:
         for region_id, val in regions.items():
-            if t[0] > val['box'][0] and t[2] > val['box'][1] and t[0] < val['box'][2] and t[2] < val['box'][3]:
+            #tigther bounding box room constraints
+            if t[0] > val['box'][0]+1.0 and t[2] > val['box'][1]+1.0 and t[0] < val['box'][2]-1.0 and t[2] < val['box'][3]-1.0:
             # if np.power(np.power(np.array(t) - np.array(val['center']), 2).sum(0), 0.5) <= 0.5:
                 target_room_id = region_id
                 target_room_bb = val['box']
@@ -69,7 +70,7 @@ def is_valid_target(t, regions, level_y_bounds):
     
     return False, source_regions, target_room_id, target_room_bb, target_room_type
 
-def is_compatible_episode(s, t, target_room_aabb, sim, source_regions, level_y_bounds):
+def is_compatible_episode(s, t, target_room_aabb, sim, source_regions, level_y_bounds, near_dist, far_dist, geodesic_to_euclid_ratio):
 
     if np.abs(s[1] - t[1]) > 0.5:  # check height difference to assure s and
         #  t are from same floor
@@ -77,7 +78,19 @@ def is_compatible_episode(s, t, target_room_aabb, sim, source_regions, level_y_b
 
     d_separation = sim.geodesic_distance(s, t)
 
-    if d_separation == np.inf or d_separation <= 1:
+    if d_separation == np.inf:
+        return False, '', 0
+
+    if not near_dist <= d_separation <= far_dist:
+        return False, '', 0
+
+    euclid_dist = np.power(np.power(np.array(s) - np.array(t), 2).sum(0), 0.5)
+    distances_ratio = d_separation / euclid_dist
+
+    if distances_ratio < geodesic_to_euclid_ratio and (
+        np.random.rand()
+        > _ratio_sample_rate(distances_ratio, geodesic_to_euclid_ratio)
+    ):
         return False, '', 0
 
     #overlap check
@@ -126,7 +139,7 @@ def _create_episode(
 
 def generate_roomnav_episode(sim, episode_id, regions, level_y_bounds, is_gen_shortest_path = False, shortest_path_success_distance = 0.2,
                                 shortest_path_max_steps = 500, closest_dist_limit = 1, furthest_dist_limit = 30, geodesic_to_euclid_min_ratio = 1.1,
-                                number_retries_per_target = 1000):
+                                number_retries_per_target = 1000, near_dist=float(1), far_dist=float(45), geodesic_to_euclid_ratio=float(1.1)):
     """Function that generates PointGoal navigation episodes.
 
     An episode is trivial if there is an obstacle-free, straight line between
@@ -181,14 +194,8 @@ def generate_roomnav_episode(sim, episode_id, regions, level_y_bounds, is_gen_sh
             # import pdb
             # pdb.set_trace()
 
-            is_compatible, source_room_type, dist = is_compatible_episode(
-                source_position,
-                target_position,
-                target_room_aabb,
-                sim,
-                source_regions,
-                level_y_bounds
-                )
+            is_compatible, source_room_type, dist = is_compatible_episode(source_position,target_position,target_room_aabb,
+                sim,source_regions,level_y_bounds,near_dist,far_dist,geodesic_to_euclid_ratio)
             # except:
             #     import pdb; pdb.set_trace()
 
@@ -237,10 +244,10 @@ def get_mp3d_scenes(split: str = "test", scene_template: str = "{scene}") -> Lis
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--seed', default=73, type=int)
-    parser.add_argument('--count-points', default=500, type=int)
-    parser.add_argument('--split', default="test", type=str)
+    parser.add_argument('--count-points', default=6000000, type=int)
+    parser.add_argument('--split', default="train", type=str)
     parser.add_argument('--output-path',
-                        default="/private/home/medhini/navigation-analysis-habitat/habitat-api/data/datasets/roomnav/mp3d/v1/test/test",
+                        default="/private/home/medhini/navigation-analysis-habitat/habitat-api/data/datasets/roomnav/mp3d/v1/train/train_all",
                         type=str)
     parser.add_argument('-g', '--gpu', default=0, type=int)
     parser.add_argument('--scene-path', type=str,
@@ -262,7 +269,7 @@ def main():
 
     config = habitat.get_config(config_paths='tasks/pointnav_mp3d.yaml')
     config.defrost()
-    config.DATASET.DATA_PATH = '/private/home/medhini/mp3d_dummy/test/test.json.gz'
+    config.DATASET.DATA_PATH = 'mp3d_dummy/train/train.json.gz'
     config.DATASET.SCENES_DIR = '/private/home/medhini/navigation-analysis-habitat/habitat-api/data/scene_datasets/'
     config.freeze()
 
