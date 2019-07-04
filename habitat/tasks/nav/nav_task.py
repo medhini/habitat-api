@@ -475,8 +475,6 @@ class RoomNavMetric(Measure):
         self._sim = sim
         self._config = config
 
-        # print('Using room nav metric!')
-
         super().__init__()
 
     def _get_uuid(self, *args: Any, **kwargs: Any):
@@ -498,7 +496,6 @@ class RoomNavMetric(Measure):
             position[0] > room_aabb[0]+0.5 and position[2] > room_aabb[1]+0.5 
             and position[0] < room_aabb[2]-0.5 and position[2] < room_aabb[3]-0.5
         ):
-            # print(position, room_aabb)
             return True
 
         return False
@@ -516,14 +513,10 @@ class RoomNavMetric(Measure):
             action == self._sim.index_stop_action
             and self.in_room(current_position, episode.goals[0].room_aabb)
         ):
-            # print(self._start_end_episode_distance, episode.start_room, episode.goals[0].room_name)
             self._start_end_episode_distance = self._sim.geodesic_distance(
             episode.start_position, current_position)
-            # print('SUCCESS!!!')
             ep_success = 1
-            # print(episode.start_position, current_position)   
-            # print(self._start_end_episode_distance)
-
+            
         self._agent_episode_distance += self._euclidean_distance(
             current_position, self._previous_position
         )
@@ -620,6 +613,7 @@ class TopDownMap(Measure):
                 self._coordinate_max,
                 self._map_resolution,
             )
+
             point_padding = 2 * int(
                 np.ceil(self._map_resolution[0] / MAP_THICKNESS_SCALAR)
             )
