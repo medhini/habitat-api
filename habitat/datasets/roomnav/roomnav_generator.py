@@ -26,7 +26,6 @@ that aren't part of a floor.
 """
 ISLAND_RADIUS_LIMIT = 1.5
 
-
 def _ratio_sample_rate(ratio: float, ratio_threshold: float) -> float:
     r"""Sampling function for aggressive filtering of straight-line
     episodes with shortest path geodesic distance to Euclid distance ratio
@@ -40,49 +39,34 @@ def _ratio_sample_rate(ratio: float, ratio_threshold: float) -> float:
     assert ratio < ratio_threshold
     return 20 * (ratio - 0.98) ** 2
 
-def is_valid_target(t, regions, level_y_bounds):
-
-    source_regions = {}
+def is_valid_target(t, regions):
     target_room_id = -1
     target_room_bb = -1
     target_room_type = ''
 
-    flag = False
+    for region_id, val in regions.items():
+        #tigther bounding box room constraints
+        if t[0] > val['box'][0]+1.0 and t[2] > val['box'][1]+1.0 and t[0] < val['box'][2]-1.0 and t[2] < val['box'][3]-1.0:
+            target_room_id = region_id
+            target_room_bb = val['box']
+            target_room_type = val['type']
+            return True, target_room_id, target_room_bb, target_room_type
 
-    #level check   
+    return False, target_room_id, target_room_bb, target_room_type
 
-    if t[1] > level_y_bounds[0] and t[1] < level_y_bounds[1]:
-        for region_id, val in regions.items():
-            #tigther bounding box room constraints
-            if t[0] > val['box'][0]+1.0 and t[2] > val['box'][1]+1.0 and t[0] < val['box'][2]-1.0 and t[2] < val['box'][3]-1.0:
-            # if np.power(np.power(np.array(t) - np.array(val['center']), 2).sum(0), 0.5) <= 0.5:
-                target_room_id = region_id
-                target_room_bb = val['box']
-                target_room_type = val['type']
-                flag = True
-
-        if flag == True:
-            for region_id, val in regions.items():
-                if val['type'] != target_room_type:
-                    source_regions[val['box']] = val['type']
-
-            return True, source_regions, target_room_id, target_room_bb, target_room_type
-    
-    return False, source_regions, target_room_id, target_room_bb, target_room_type
-
-def is_compatible_episode(s, t, target_room_aabb, sim, source_regions, level_y_bounds, near_dist, far_dist, geodesic_to_euclid_ratio):
+def is_compatible_episode(s, t, target_room_aabb, sim, near_dist, far_dist, geodesic_to_euclid_ratio):
 
     if np.abs(s[1] - t[1]) > 0.5:  # check height difference to assure s and
         #  t are from same floor
-        return False, '', 0
+        return False, 0
 
     d_separation = sim.geodesic_distance(s, t)
 
     if d_separation == np.inf:
-        return False, '', 0
+        return False, 0
 
     if not near_dist <= d_separation <= far_dist:
-        return False, '', 0
+        return False, 0
 
     euclid_dist = np.power(np.power(np.array(s) - np.array(t), 2).sum(0), 0.5)
     distances_ratio = d_separation / euclid_dist
@@ -91,33 +75,27 @@ def is_compatible_episode(s, t, target_room_aabb, sim, source_regions, level_y_b
         np.random.rand()
         > _ratio_sample_rate(distances_ratio, geodesic_to_euclid_ratio)
     ):
-        return False, '', 0
+        return False, 0
 
     #overlap check
     if (
         s[0] > target_room_aabb[0] and s[2] > target_room_aabb[1]
         and s[0] < target_room_aabb[2] and s[2] < target_room_aabb[3]
     ):
-        return False, '', 0
+        return False, 0
 
     if sim.island_radius(s) < ISLAND_RADIUS_LIMIT:
-        return False, '', d_separation
+        return False, d_separation
 
-    #source level check
-    if s[1] > level_y_bounds[0] and s[1] < level_y_bounds[1]:
-        for region, region_type in source_regions.items():
-            # print(region)
-            if s[0] > region[0] and s[2] > region[1] and s[0] < region[2] and s[2] < region[3]:
-                return True, region_type, d_separation
-
-    return False, '', 0
+    #TODO: Another check to see if source is closest to target of target room type.
+    
+    return True, d_separation
 
 def _create_episode(
     episode_id,
     scene_id,
     start_position,
     start_rotation,
-    start_room_type,
     target_position,
     target_room_type,
     target_room_aabb,
@@ -132,12 +110,11 @@ def _create_episode(
         scene_id=scene_id,
         start_position=start_position,
         start_rotation=start_rotation,
-        start_room=start_room_type,
         shortest_paths=shortest_paths,
         info=info,
     )
 
-def generate_roomnav_episode(sim, episode_id, regions, level_y_bounds, is_gen_shortest_path = False, shortest_path_success_distance = 0.2,
+def generate_roomnav_episode(sim, episode_id, regions, is_gen_shortest_path = False, shortest_path_success_distance = 0.2,
                                 shortest_path_max_steps = 500, closest_dist_limit = 1, furthest_dist_limit = 30, geodesic_to_euclid_min_ratio = 1.1,
                                 number_retries_per_target = 1000, near_dist=float(1), far_dist=float(45), geodesic_to_euclid_ratio=float(1.1)):
     """Function that generates PointGoal navigation episodes.
@@ -177,7 +154,7 @@ def generate_roomnav_episode(sim, episode_id, regions, level_y_bounds, is_gen_sh
         if sim.island_radius(target_position) < ISLAND_RADIUS_LIMIT:
             continue
 
-        valid_target, source_regions, target_room_id, target_room_aabb, target_room_type = is_valid_target(target_position, regions, level_y_bounds)
+        valid_target, target_room_id, target_room_aabb, target_room_type = is_valid_target(target_position, regions)
 
         if valid_target == False:
             continue
@@ -185,22 +162,11 @@ def generate_roomnav_episode(sim, episode_id, regions, level_y_bounds, is_gen_sh
         # print('TARGET:',target_position)
         for retry in range(number_retries_per_target):
             source_position = sim.sample_navigable_point()
-            # try:
-            # print(source_position,
-            #     target_position,
-            #     sim,source_regions, level_y_bounds)
 
-            # print(source_position)
-            # import pdb
-            # pdb.set_trace()
-
-            is_compatible, source_room_type, dist = is_compatible_episode(source_position,target_position,target_room_aabb,
-                sim,source_regions,level_y_bounds,near_dist,far_dist,geodesic_to_euclid_ratio)
-            # except:
-            #     import pdb; pdb.set_trace()
+            is_compatible, dist = is_compatible_episode(source_position,target_position,target_room_aabb,
+                sim,near_dist,far_dist,geodesic_to_euclid_ratio)
 
             if is_compatible:
-                # print('SOURCE:', source_position)
                 angle = np.random.uniform(0, 2 * np.pi)
                 source_rotation = [0, np.sin(angle / 2), 0, np.cos(angle / 2)]
 
@@ -222,7 +188,6 @@ def generate_roomnav_episode(sim, episode_id, regions, level_y_bounds, is_gen_sh
                     scene_id=sim.config.SCENE,
                     start_position=source_position,
                     start_rotation=source_rotation,
-                    start_room_type=source_room_type,
                     target_position=target_position,
                     target_room_aabb=target_room_aabb,
                     target_room_type=target_room_type,
@@ -230,6 +195,7 @@ def generate_roomnav_episode(sim, episode_id, regions, level_y_bounds, is_gen_sh
                     radius=shortest_path_success_distance,
                     info={"geodesic_distance": dist},
                 )
+
                 return episode
 
 def get_mp3d_scenes(split: str = "test", scene_template: str = "{scene}") -> List[str]:
@@ -244,7 +210,7 @@ def get_mp3d_scenes(split: str = "test", scene_template: str = "{scene}") -> Lis
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--seed', default=73, type=int)
-    parser.add_argument('--count-points', default=6000000, type=int)
+    parser.add_argument('--count-points', default=20000000, type=int)
     parser.add_argument('--split', default="train", type=str)
     parser.add_argument('--output-path',
                         default="/private/home/medhini/navigation-analysis-habitat/habitat-api/data/datasets/roomnav/mp3d/v1/train/train_all",
@@ -256,13 +222,10 @@ def main():
 
     os.environ["CUDA_VISIBLE_DEVICES"] = str(args.gpu)
 
-    # scenes = util.get_mp3d_scenes(args.split, args.scene_path)
-    scenes = get_mp3d_scenes(args.split, args.scene_path)
     progress_bar = tqdm(total=args.count_points)
     dataset = RoomNavDatasetV1()
     # dataset = PointNavDatasetV1()
     np.random.seed(args.seed)
-    difficulty_counts = {}
     allowed_regions = ['bedroom', 'bathroom', 'kitchen', 'living room', 'dining room']
 
     scene_count = 0
@@ -279,23 +242,20 @@ def main():
 
     for i in range(len(env.episodes)):
         obs = env.reset()
-        # print('SCENE PATH used:', episode['scene_id'])
         scene = env.sim.semantic_annotations()
         regions = {}
 
-        print('SCENE PATH used:', env.sim.config.SCENE)
+        print('SCENE PATH used:', env.sim.config.SCENE, env.current_episode.scene_id)
 
-        if env.sim.config.SCENE.split('/')[-1] in ['8194nk5LbLH.glb', 'B6ByNegPMKs.glb', 'ZMojNkEp431.glb']:
+        if env.sim.config.SCENE.split('/')[-1] in ['8194nk5LbLH.glb', 'B6ByNegPMKs.glb', 'ZMojNkEp431.glb', 'Z6MFQCViBuw.glb']:
             print('FAULTY SCENE PATH:', env.sim.config.SCENE)
             continue
 
         this_scene = False
         level = scene.levels[0]
-        level_y_bounds = [level.aabb.center[1] - level.aabb.sizes[1]/2, level.aabb.center[1] + level.aabb.sizes[1]/2] 
         
         for region in level.regions:
             if region.category.name() == 'kitchen':
-                scene_count += 1
                 this_scene = True
                 break
 
@@ -310,13 +270,12 @@ def main():
                     regions[region.id]['type'] = region.category.name()
 
             # print(regions)
-            for episode_id in range(round(args.count_points / roomnav_scenes[args.split])):
-            # for episode_id in range(round(args.count_points / len(scenes))):
-                # print('EPISODE ID: ', episode_id)
-                episode = generate_roomnav_episode(env.sim, episode_id, regions, level_y_bounds)
-                # if episode is not None:
-                dataset.episodes.append(episode)
-                progress_bar.update(1)
+            if len(regions) > 0:
+                scene_count += 1
+                for episode_id in range(round(args.count_points / roomnav_scenes[args.split])):
+                    episode = generate_roomnav_episode(env.sim, episode_id, regions)
+                    dataset.episodes.append(episode)
+                    progress_bar.update(1)
 
     env.close()
     del env
@@ -326,18 +285,6 @@ def main():
 
     with gzip.GzipFile(args.output_path + ".json.gz", 'wb') as f:
         f.write(json_str.encode("utf-8"))
-
-    # print("simple_episodes : ", simple_episodes)
-    # print("difficulty_counts: ", difficulty_counts)
-    # print("Retries per episode: ", RETRIES / len(dataset.episodes))
-    # print("RETRIES_DIFF_LEVELS per episode: ",
-    #       RETRIES_DIFF_LEVELS / len(dataset.episodes))
-    # print("RETRIES_NO_PATH per episode: ",
-    #       RETRIES_NO_PATH / len(dataset.episodes))
-    # print("RETRIES_DIS_RANGE per episode: ",
-    #       RETRIES_DIS_RANGE / len(dataset.episodes))
-    # print("RETRIES_SAMPL per episode: ",
-    #       RETRIES_SAMPL / len(dataset.episodes))
 
     print("Dataset file: {}.json.gz includes {} scenes.".format(
         args.output_path, scene_count))
