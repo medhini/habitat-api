@@ -247,7 +247,7 @@ def main():
 
         print('SCENE PATH used:', env.sim.config.SCENE, env.current_episode.scene_id)
 
-        if env.sim.config.SCENE.split('/')[-1] in ['8194nk5LbLH.glb', 'B6ByNegPMKs.glb', 'ZMojNkEp431.glb', 'Z6MFQCViBuw.glb']:
+        if env.sim.config.SCENE.split('/')[-1] in ['8194nk5LbLH.glb', 'B6ByNegPMKs.glb', 'ZMojNkEp431.glb']:
             print('FAULTY SCENE PATH:', env.sim.config.SCENE)
             continue
 

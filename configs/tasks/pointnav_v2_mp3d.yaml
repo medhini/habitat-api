@@ -25,4 +25,4 @@ TASK:
 DATASET:
   TYPE: PointNav-v1
   SPLIT: train
-  DATA_PATH: data/datasets/pointnav/mp3d/v1/{split}/{split}.json.gz
+  DATA_PATH: data/datasets/pointnav/mp3d/v2/{split}/{split}.json.gz
