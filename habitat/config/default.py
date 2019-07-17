@@ -56,6 +56,11 @@ _C.TASK.PROXIMITY_SENSOR = CN()
 _C.TASK.PROXIMITY_SENSOR.TYPE = "ProximitySensor"
 _C.TASK.PROXIMITY_SENSOR.MAX_DETECTION_RADIUS = 2.0
 # -----------------------------------------------------------------------------
+# # COMPASS SENSOR
+# -----------------------------------------------------------------------------
+_C.TASK.EPO_GPS_AND_COMPASS = CN()
+_C.TASK.EPO_GPS_AND_COMPASS.TYPE = "EpisodicGPSAndCompassSensor"
+# -----------------------------------------------------------------------------
 # # SPL MEASUREMENT
 # -----------------------------------------------------------------------------
 _C.TASK.SPL = CN()

@@ -11,6 +11,7 @@ import cv2
 import numpy as np
 from gym import spaces
 
+import habitat_sim.utils
 from habitat.config import Config
 from habitat.core.dataset import Dataset, Episode
 from habitat.core.embodied_task import EmbodiedTask, Measure, Measurements
@@ -127,6 +128,61 @@ class RoomNavigationEpisode(Episode):
     )
     start_room: Optional[str] = None
     shortest_paths: Optional[List[ShortestPathPoint]] = None
+
+class _SE3:
+    def __init__(self, rot, trans):
+        self.rot = rot
+        self.trans = trans
+
+    def inv(self):
+        rot_inv = self.rot.inverse()
+        return _SE3(
+            rot_inv, habitat_sim.utils.quat_rotate_vector(rot_inv, -self.trans)
+        )
+
+    def __mul__(self, other):
+        return _SE3(
+            self.rot * other.rot,
+            self.trans
+            + habitat_sim.utils.quat_rotate_vector(self.rot, other.trans),
+        )
+        
+@registry.register_sensor
+class EpisodicGPSAndCompassSensor(Sensor):
+    def __init__(self, sim: Simulator, config: Config):
+        self._sim = sim
+        super().__init__(config=config)
+
+    def _get_uuid(self, *args: Any, **kwargs: Any):
+        return "gps_and_compass"
+
+    def _get_sensor_type(self, *args: Any, **kwargs: Any):
+        return SensorTypes.POSITION
+
+    def _get_observation_space(self, *args: Any, **kwargs: Any):
+        return spaces.Box(
+            low=np.finfo(np.float32).min,
+            high=np.finfo(np.float32).max,
+            shape=(6,),
+            dtype=np.float32,
+        )
+
+    def get_observation(self, observations, episode):
+        state = self._sim.get_agent_state()
+        transform_world_curr = _SE3(state.rotation, state.position)
+
+        transform_start_curr = (
+            episode.transform_start_world * transform_world_curr
+        )
+
+        look_dir = np.array([0, 0, -1], dtype=np.float32)
+        heading_vector = habitat_sim.utils.quat_rotate_vector(
+            transform_start_curr.rot, look_dir
+        )
+
+        pos = transform_start_curr.trans
+
+        return np.concatenate([heading_vector, pos]).astype(np.float32)
 
 @registry.register_sensor
 class PointGoalSensor(Sensor):
