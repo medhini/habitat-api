@@ -82,23 +82,14 @@ class RoomGoal(NavigationGoal):
     # room_id: str = attr.ib(default=None, validator=not_none_validator)
     room_name: Optional[str] = None
 
-class _SE3:
+class SE3:
     def __init__(self, rot, trans):
         self.rot = rot
         self.trans = trans
 
     def inv(self):
         rot_inv = self.rot.inverse()
-        return _SE3(
-            rot_inv, habitat_sim.utils.quat_rotate_vector(rot_inv, -self.trans)
-        )
-
-    def __mul__(self, other):
-        return _SE3(
-            self.rot * other.rot,
-            self.trans
-            + habitat_sim.utils.quat_rotate_vector(self.rot, other.trans),
-        )
+        return SE3(rot_inv, habitat_sim.utils.quat_rotate_vector(rot_inv, -self.trans))
 
 @attr.s(auto_attribs=True, kw_only=True)
 class NavigationEpisode(Episode):
@@ -117,30 +108,11 @@ class NavigationEpisode(Episode):
         start_room: room id
         shortest_paths: list containing shortest paths to goals
     """
-
     goals: List[NavigationGoal] = attr.ib(
         default=None, validator=not_none_validator
     )
     start_room: Optional[str] = None
     shortest_paths: Optional[List[ShortestPathPoint]] = None
-
-    @lazy_property.LazyProperty
-    def transform_world_start(self):
-        return _SE3(
-            habitat_sim.utils.quat_from_coeffs(self.start_rotation),
-            np.array(self.start_position),
-        )
-
-    @lazy_property.LazyProperty
-    def transform_start_world(self):
-        return self.transform_world_start.inv()
-
-    def __getstate__(self):
-        return {
-            k: v
-            for k, v in self.__dict__.items()
-            if k not in {"_transform_start_world", "_transform_world_start"}
-        }
 
 
 @attr.s(auto_attribs=True, kw_only=True)
@@ -164,25 +136,6 @@ class RoomNavigationEpisode(NavigationEpisode):
     goals: List[RoomGoal] = attr.ib(
         default=None, validator=not_none_validator
     )
-    # start_room: Optional[str] = None
-    # shortest_paths: Optional[List[ShortestPathPoint]] = None
-
-    # def transform_world_start(self):
-    #     return _SE3(
-    #         habitat_sim.utils.quat_from_coeffs(self.start_rotation),
-    #         np.array(self.start_position),
-    #     )
-
-    # def transform_start_world(self):
-    #     print(type(self.transform_world_start.inv()))
-    #     return self.transform_world_start.inv()
-
-    # def __getstate__(self):
-    #     return {
-    #         k: v
-    #         for k, v in self.__dict__.items()
-    #         if k not in {"_transform_start_world", "_transform_world_start"}
-    #     }
         
 @registry.register_sensor
 class EpisodicGPSAndCompassSensor(Sensor):
@@ -206,23 +159,9 @@ class EpisodicGPSAndCompassSensor(Sensor):
 
     def get_observation(self, observations, episode):
         state = self._sim.get_agent_state()
-        transform_world_curr = _SE3(state.rotation, state.position)
-        
-        print("Transform world curr type: ", type(transform_world_curr))
-        #return tranform_world_curr.inv() ??
+        transform_world_curr = SE3(state.rotation, state.position)
 
-        transform_start_curr = (
-            episode.transform_start_world * transform_world_curr
-        )
-
-        look_dir = np.array([0, 0, -1], dtype=np.float32)
-        heading_vector = habitat_sim.utils.quat_rotate_vector(
-            transform_start_curr.rot, look_dir
-        )
-
-        pos = transform_start_curr.trans
-
-        return np.concatenate([heading_vector, pos]).astype(np.float32)
+        return transform_world_curr.inv()
 
 @registry.register_sensor
 class PointGoalSensor(Sensor):
