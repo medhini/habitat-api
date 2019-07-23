@@ -11,6 +11,8 @@ import cv2
 import numpy as np
 from gym import spaces
 import lazy_property
+import math
+import quaternion
 
 import habitat_sim.utils
 from habitat.config import Config
@@ -89,7 +91,7 @@ class SE3:
 
     def inv(self):
         rot_inv = self.rot.inverse()
-        return SE3(rot_inv, habitat_sim.utils.quat_rotate_vector(rot_inv, -self.trans))
+        return SE3(quaternion.as_rotation_matrix(rot_inv), habitat_sim.utils.quat_rotate_vector(rot_inv, -self.trans))
 
 @attr.s(auto_attribs=True, kw_only=True)
 class NavigationEpisode(Episode):
@@ -160,8 +162,12 @@ class EpisodicGPSAndCompassSensor(Sensor):
     def get_observation(self, observations, episode):
         state = self._sim.get_agent_state()
         transform_world_curr = SE3(state.rotation, state.position)
+        transform_world_curr_inv = transform_world_curr.inv()
 
-        return transform_world_curr.inv()
+        theta = np.array([math.degrees(math.acos(transform_world_curr_inv.rot[0,0]))]).astype(np.float64)
+        trans = np.array([transform_world_curr_inv.trans[0], transform_world_curr_inv.trans[2]]).astype(np.float64)
+        
+        return np.concatenate([theta, trans]).astype(np.float64)
 
 @registry.register_sensor
 class PointGoalSensor(Sensor):
