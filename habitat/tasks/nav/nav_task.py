@@ -33,7 +33,6 @@ from habitat.utils.visualizations import maps
 COLLISION_PROXIMITY_TOLERANCE: float = 1e-3
 MAP_THICKNESS_SCALAR: int = 1250
 
-
 def merge_sim_episode_config(
     sim_config: Config, episode: Type[Episode]
 ) -> Any:
@@ -82,7 +81,7 @@ class RoomGoal(NavigationGoal):
     """
     room_aabb: Tuple[float] = attr.ib(default=None, validator=not_none_validator)
     # room_id: str = attr.ib(default=None, validator=not_none_validator)
-    room_name: Optional[str] = None
+    room_name: str = attr.ib(default=None, validator=not_none_validator)
 
 class SE3:
     def __init__(self, rot, trans):
@@ -284,25 +283,25 @@ class RoomGoalSensor(Sensor):
         )
 
     def get_observation(self, observations, episode):
-        agent_state = self._sim.get_agent_state()
-        ref_position = agent_state.position
-        rotation_world_agent = agent_state.rotation
+        # agent_state = self._sim.get_agent_state()
+        # ref_position = agent_state.position
+        # rotation_world_agent = agent_state.rotation
 
-        direction_vector = (
-            np.array(episode.goals[0].position, dtype=np.float32)
-            - ref_position
-        )
-        direction_vector_agent = quaternion_rotate_vector(
-            rotation_world_agent.inverse(), direction_vector
-        )
+        # direction_vector = (
+        #     np.array(episode.goals[0].position, dtype=np.float32)
+        #     - ref_position
+        # )
+        # direction_vector_agent = quaternion_rotate_vector(
+        #     rotation_world_agent.inverse(), direction_vector
+        # )
 
-        if self._goal_format == "POLAR":
-            rho, phi = cartesian_to_polar(
-                -direction_vector_agent[2], direction_vector_agent[0]
-            )
-            direction_vector_agent = np.array([rho, -phi], dtype=np.float32)
+        # if self._goal_format == "POLAR":
+        #     rho, phi = cartesian_to_polar(
+        #         -direction_vector_agent[2], direction_vector_agent[0]
+        #     )
+        #     direction_vector_agent = np.array([rho, -phi], dtype=np.float32)
 
-        return direction_vector_agent
+        return episode.goals[0].room_name
 
 @registry.register_sensor
 class StaticPointGoalSensor(Sensor):
