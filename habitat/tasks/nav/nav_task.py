@@ -259,8 +259,8 @@ class RoomGoalSensor(Sensor):
     def __init__(self, sim: Simulator, config: Config):
         self._sim = sim
 
-        self._goal_format = getattr(config, "GOAL_FORMAT", "CARTESIAN")
-        assert self._goal_format in ["CARTESIAN", "POLAR"]
+        # self._goal_format = getattr(config, "GOAL_FORMAT", "CARTESIAN")
+        # assert self._goal_format in ["CARTESIAN", "POLAR"]
 
         super().__init__(config=config)
 
@@ -271,10 +271,10 @@ class RoomGoalSensor(Sensor):
         return SensorTypes.PATH
 
     def _get_observation_space(self, *args: Any, **kwargs: Any):
-        if self._goal_format == "CARTESIAN":
-            sensor_shape = (3,)
-        else:
-            sensor_shape = (2,)
+        # if self._goal_format == "CARTESIAN":
+        #     sensor_shape = (3,)
+        # else:
+        #     sensor_shape = (2,)
         return spaces.Box(
             low=np.finfo(np.float32).min,
             high=np.finfo(np.float32).max,
@@ -283,24 +283,6 @@ class RoomGoalSensor(Sensor):
         )
 
     def get_observation(self, observations, episode):
-        # agent_state = self._sim.get_agent_state()
-        # ref_position = agent_state.position
-        # rotation_world_agent = agent_state.rotation
-
-        # direction_vector = (
-        #     np.array(episode.goals[0].position, dtype=np.float32)
-        #     - ref_position
-        # )
-        # direction_vector_agent = quaternion_rotate_vector(
-        #     rotation_world_agent.inverse(), direction_vector
-        # )
-
-        # if self._goal_format == "POLAR":
-        #     rho, phi = cartesian_to_polar(
-        #         -direction_vector_agent[2], direction_vector_agent[0]
-        #     )
-        #     direction_vector_agent = np.array([rho, -phi], dtype=np.float32)
-
         return episode.goals[0].room_name
 
 @registry.register_sensor
