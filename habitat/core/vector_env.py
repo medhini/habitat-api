@@ -31,7 +31,7 @@ OBSERVATION_SPACE_COMMAND = "observation_space"
 ACTION_SPACE_COMMAND = "action_space"
 CALL_COMMAND = "call"
 EPISODE_COMMAND = "current_episode"
-SEMANTIC_ANNOTATIONS_COMMAND = "._env.sim.semantic_annotations"
+SEMANTIC_ANNOTATIONS_COMMAND = "semantic_annotations"
 
 def _make_env_fn(
     config: Config, dataset: Optional[habitat.Dataset] = None, rank: int = 0
@@ -195,7 +195,20 @@ class VectorEnv:
                     connection_write_fn(env.current_episode)
 
                 elif command == SEMANTIC_ANNOTATIONS_COMMAND:
-                    connection_write_fn(env._env.sim.semantic_annotations)
+                    scene = env._env.sim.semantic_annotations()
+                    scene_center = scene.aabb.center
+                    scene_sizes = scene.aabb.sizes
+                    region_names = []
+                    region_centers = []
+                    region_sizes = []
+
+                    for region in scene.levels[0].regions:
+                        region_names.append(region.category.name())
+                        region_centers.append(region.aabb.center)
+                        region_sizes.append(region.aabb.sizes)
+
+                    connection_write_fn((scene_center, scene_sizes, region_names, 
+                    region_centers, region_sizes))
                     # scene = env.sim.semantic_annotations()
                     # scene.aabb.center, scene.aabb.sizes, scene.levels[0].regions
                 else:
@@ -254,13 +267,13 @@ class VectorEnv:
         return results
 
     def semantic_annotations(self):
-        self._is_waiting = True
-        for write_fn in self._connection_write_fns:
-            write_fn((SEMANTIC_ANNOTATIONS_COMMAND, None))
-        results = []
-        for read_fn in self._connection_read_fns:
-            results.append(read_fn())
-        self._is_waiting = False
+        # self._is_waiting = True
+        # for write_fn in self._connection_write_fns:
+        #     write_fn((SEMANTIC_ANNOTATIONS_COMMAND, None))
+        # results = []
+        # for read_fn in self._connection_read_fns:
+        #     results.append(read_fn())
+        # self._is_waiting = False
         return results
 
     def reset(self):
