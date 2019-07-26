@@ -258,6 +258,13 @@ class RoomGoalSensor(Sensor):
 
     def __init__(self, sim: Simulator, config: Config):
         self._sim = sim
+        self.room_name_to_id = {
+            'bathroom': 0,
+            'bedroom': 1,
+            'dining room': 2,
+            'kitchen': 3,
+            'living room': 4 
+        }
 
         # self._goal_format = getattr(config, "GOAL_FORMAT", "CARTESIAN")
         # assert self._goal_format in ["CARTESIAN", "POLAR"]
@@ -271,19 +278,15 @@ class RoomGoalSensor(Sensor):
         return SensorTypes.PATH
 
     def _get_observation_space(self, *args: Any, **kwargs: Any):
-        # if self._goal_format == "CARTESIAN":
-        #     sensor_shape = (3,)
-        # else:
-        #     sensor_shape = (2,)
         return spaces.Box(
-            low=np.finfo(np.float32).min,
-            high=np.finfo(np.float32).max,
-            shape=sensor_shape,
-            dtype=np.float32,
+            low=min(self.room_name_to_id.values()),
+            high=max(self.room_name_to_id.values()),
+            shape=(1,),
+            dtype=np.int64,
         )
 
     def get_observation(self, observations, episode):
-        return episode.goals[0].room_name
+        return np.array([self.room_name_to_id[episode.goals[0].room_name]])
 
 @registry.register_sensor
 class StaticPointGoalSensor(Sensor):
@@ -506,9 +509,22 @@ class RoomNavMetric(Measure):
     def _get_uuid(self, *args: Any, **kwargs: Any):
         return "roomnavmetric"
 
+    def nearest_point_in_room(self, start_position, room_aabb):
+        x_axes = np.arange(room_aabb[0], room_aabb[2], 0.1)
+        y_axes = np.arange(room_aabb[1], room_aabb[3], 0.1)
+
+        shortest_distance = 100000.0
+        for i in x_axes:
+            for j in y_axes:
+                if self._sim.is_navigable([i,start_position[1],j]):
+                    dist = self._sim.geodesic_distance(start_position, [i, start_position[1], j])
+                    shortest_distance = min(dist, shortest_distance)
+        
+        return shortest_distance
+
     def reset_metric(self, episode):
         self._previous_position = self._sim.get_agent_state().position.tolist()
-        self._start_end_episode_distance = episode.info["geodesic_distance"]
+        self._start_end_episode_distance = self.nearest_point_in_room(episode.start_position, episode.goals[0].room_aabb)
         self._agent_episode_distance = 0.0
         self._metric = None
 
@@ -530,17 +546,10 @@ class RoomNavMetric(Measure):
         ep_success = 0
         current_position = self._sim.get_agent_state().position.tolist()
 
-        
-        distance_to_target = self._sim.geodesic_distance(
-            current_position, episode.goals[0].position
-        )
-
         if (
             action == self._sim.index_stop_action
             and self.in_room(current_position, episode.goals[0].room_aabb)
         ):
-            self._start_end_episode_distance = self._sim.geodesic_distance(
-            episode.start_position, current_position)
             ep_success = 1
             
         self._agent_episode_distance += self._euclidean_distance(

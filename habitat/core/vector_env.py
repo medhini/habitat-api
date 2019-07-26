@@ -31,6 +31,7 @@ OBSERVATION_SPACE_COMMAND = "observation_space"
 ACTION_SPACE_COMMAND = "action_space"
 CALL_COMMAND = "call"
 EPISODE_COMMAND = "current_episode"
+SEMANTIC_ANNOTATIONS_COMMAND = "._env.sim.semantic_annotations"
 
 def _make_env_fn(
     config: Config, dataset: Optional[habitat.Dataset] = None, rank: int = 0
@@ -192,6 +193,11 @@ class VectorEnv:
 
                 elif command == EPISODE_COMMAND:
                     connection_write_fn(env.current_episode)
+
+                elif command == SEMANTIC_ANNOTATIONS_COMMAND:
+                    connection_write_fn(env._env.sim.semantic_annotations)
+                    # scene = env.sim.semantic_annotations()
+                    # scene.aabb.center, scene.aabb.sizes, scene.levels[0].regions
                 else:
                     raise NotImplementedError
 
@@ -236,11 +242,21 @@ class VectorEnv:
             [p.recv for p in parent_connections],
             [p.send for p in parent_connections],
         )
-        
+
     def current_episodes(self):
         self._is_waiting = True
         for write_fn in self._connection_write_fns:
             write_fn((EPISODE_COMMAND, None))
+        results = []
+        for read_fn in self._connection_read_fns:
+            results.append(read_fn())
+        self._is_waiting = False
+        return results
+
+    def semantic_annotations(self):
+        self._is_waiting = True
+        for write_fn in self._connection_write_fns:
+            write_fn((SEMANTIC_ANNOTATIONS_COMMAND, None))
         results = []
         for read_fn in self._connection_read_fns:
             results.append(read_fn())

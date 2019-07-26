@@ -13,18 +13,16 @@ SIMULATOR:
     HEIGHT: 256
 TASK:
   TYPE: Nav-v0
-  SENSORS: ['POINTGOAL_SENSOR']
-  POINTGOAL_SENSOR:
-    TYPE: PointGoalSensor
-    GOAL_FORMAT: POLAR
+  GOAL_SENSOR_UUID: "roomgoal"
+  SENSORS: ['ROOMGOAL_SENSOR']
+  ROOMGOAL_SENSOR:
+    TYPE: RoomGoalSensor
   MEASUREMENTS: ['ROOMNAVMETRIC']
   ROOMNAVMETRIC:
     TYPE: RoomNavMetric
-  SPL:
-    TYPE: SPL
-    SUCCESS_DISTANCE: 0.2
   
 DATASET:
   TYPE: RoomNav-v1
   SPLIT: train
   DATA_PATH: data/datasets/roomnav/mp3d/v1/{split}/{split}.json.gz
+    
