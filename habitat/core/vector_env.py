@@ -267,13 +267,13 @@ class VectorEnv:
         return results
 
     def semantic_annotations(self):
-        # self._is_waiting = True
-        # for write_fn in self._connection_write_fns:
-        #     write_fn((SEMANTIC_ANNOTATIONS_COMMAND, None))
-        # results = []
-        # for read_fn in self._connection_read_fns:
-        #     results.append(read_fn())
-        # self._is_waiting = False
+        self._is_waiting = True
+        for write_fn in self._connection_write_fns:
+            write_fn((SEMANTIC_ANNOTATIONS_COMMAND, None))
+        results = []
+        for read_fn in self._connection_read_fns:
+            results.append(read_fn())
+        self._is_waiting = False
         return results
 
     def reset(self):
