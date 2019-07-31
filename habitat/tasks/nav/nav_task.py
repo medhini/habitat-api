@@ -509,22 +509,23 @@ class RoomNavMetric(Measure):
     def _get_uuid(self, *args: Any, **kwargs: Any):
         return "roomnavmetric"
 
-    def nearest_point_in_room(self, start_position, room_aabb):
-        x_axes = np.arange(room_aabb[0], room_aabb[2], 0.1)
-        y_axes = np.arange(room_aabb[1], room_aabb[3], 0.1)
+    def nearest_point_in_room(self, start_position, target_position, room_aabb):
+        x_axes = np.arange(room_aabb[0]+0.5, room_aabb[2]-0.5, 0.1)
+        y_axes = np.arange(room_aabb[1]+0.5, room_aabb[3]-0.5, 0.1)
 
         shortest_distance = 100000.0
         for i in x_axes:
             for j in y_axes:
-                if self._sim.is_navigable([i,start_position[1],j]):
-                    dist = self._sim.geodesic_distance(start_position, [i, start_position[1], j])
+                if self._sim.is_navigable([i,target_position[1],j]):
+                    dist = self._sim.geodesic_distance(start_position, [i, target_position[1], j])
                     shortest_distance = min(dist, shortest_distance)
         
         return shortest_distance
 
     def reset_metric(self, episode):
         self._previous_position = self._sim.get_agent_state().position.tolist()
-        self._start_end_episode_distance = self.nearest_point_in_room(episode.start_position, episode.goals[0].room_aabb)
+        # self._start_end_episode_distance = episode.info["geodesic_distance"]
+        self._start_end_episode_distance = self.nearest_point_in_room(episode.start_position, episode.goals[0].position, episode.goals[0].room_aabb)
         self._agent_episode_distance = 0.0
         self._metric = None
 
