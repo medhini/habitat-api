@@ -40,8 +40,8 @@ def _ratio_sample_rate(ratio: float, ratio_threshold: float) -> float:
     return 20 * (ratio - 0.98) ** 2
 
 def nearest_point_in_room(sim, start_position, target_positon, room_aabb):
-    x_axes = np.arange(room_aabb[0]+0.5, room_aabb[2]-0.5, 0.1)
-    y_axes = np.arange(room_aabb[1]+0.5, room_aabb[3]-0.5, 0.1)
+    x_axes = np.arange(room_aabb[0]+0.2, room_aabb[2]-0.2, 1.0)
+    y_axes = np.arange(room_aabb[1]+0.2, room_aabb[3]-0.2, 1.0)
 
     new_target = None
     
@@ -54,6 +54,11 @@ def nearest_point_in_room(sim, start_position, target_positon, room_aabb):
                     shortest_distance = min(dist, shortest_distance)
                     new_target = [i, target_positon[1], j]
 
+    # assert(new_target!=None)
+    if new_target is None:
+        new_target = target_positon
+        shortest_distance = sim.geodesic_distance(start_position, target_positon)
+
     return  new_target, shortest_distance
 
 def is_valid_target(t, regions):
@@ -63,7 +68,7 @@ def is_valid_target(t, regions):
 
     for region_id, val in regions.items():
         #tigther bounding box room constraints
-        if t[0] > val['box'][0]+0.5 and t[2] > val['box'][1]+0.5 and t[0] < val['box'][2]-0.5 and t[2] < val['box'][3]-0.5:
+        if t[0] > val['box'][0]+0.2 and t[2] > val['box'][1]+0.2 and t[0] < val['box'][2]-0.2 and t[2] < val['box'][3]-0.2:
             target_room_id = region_id
             target_room_bb = val['box']
             target_room_type = val['type']
@@ -76,11 +81,11 @@ def is_compatible_episode(sim, s, t, target_room_aabb, closest_dist_limit, furth
     if np.abs(s[1] - t[1]) > 0.5:  # check height difference to assure s and
         #  t are from same floor
         return False, 0, []
-
+    # t_new, d_separation = t, sim.geodesic_distance(s,t)
     t_new, d_separation = nearest_point_in_room(sim, s, t, target_room_aabb)
     
-    if t_new is None:
-        return False, 0, []
+    # if t_new is None:
+    #     return False, 0, []
 
     if d_separation == np.inf:
         return False, 0, []
@@ -230,7 +235,7 @@ def get_mp3d_scenes(split: str = "test", scene_template: str = "{scene}") -> Lis
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--seed', default=73, type=int)
-    parser.add_argument('--count-points', default=10000000, type=int)
+    parser.add_argument('--count-points', default=4000000, type=int)
     parser.add_argument('--split', default="train", type=str)
     parser.add_argument('--output-path',
                         default="/private/home/medhini/navigation-analysis-habitat/habitat-api/data/datasets/roomnav/mp3d/v1/train/train_all",

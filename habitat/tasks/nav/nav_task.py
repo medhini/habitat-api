@@ -510,8 +510,10 @@ class RoomNavMetric(Measure):
         return "roomnavmetric"
 
     def nearest_point_in_room(self, start_position, target_position, room_aabb):
-        x_axes = np.arange(room_aabb[0]+0.5, room_aabb[2]-0.5, 0.1)
-        y_axes = np.arange(room_aabb[1]+0.5, room_aabb[3]-0.5, 0.1)
+        # x_axes = np.arange(room_aabb[0], room_aabb[2], 0.1)
+        # y_axes = np.arange(room_aabb[1], room_aabb[3], 0.1)
+        x_axes = np.arange(room_aabb[0]+0.2, room_aabb[2]-0.2, 1.0)
+        y_axes = np.arange(room_aabb[1]+0.2, room_aabb[3]-0.2, 1.0)
 
         shortest_distance = 100000.0
         for i in x_axes:
@@ -524,8 +526,8 @@ class RoomNavMetric(Measure):
 
     def reset_metric(self, episode):
         self._previous_position = self._sim.get_agent_state().position.tolist()
-        # self._start_end_episode_distance = episode.info["geodesic_distance"]
-        self._start_end_episode_distance = self.nearest_point_in_room(episode.start_position, episode.goals[0].position, episode.goals[0].room_aabb)
+        self._start_end_episode_distance = episode.info["geodesic_distance"]
+        # self._start_end_episode_distance = self.nearest_point_in_room(episode.start_position, episode.goals[0].position, episode.goals[0].room_aabb)
         self._agent_episode_distance = 0.0
         self._metric = None
 
@@ -536,8 +538,8 @@ class RoomNavMetric(Measure):
 
     def in_room(self, position, room_aabb):
         if (
-            position[0] > room_aabb[0]+0.5 and position[2] > room_aabb[1]+0.5 
-            and position[0] < room_aabb[2]-0.5 and position[2] < room_aabb[3]-0.5
+            position[0] > room_aabb[0]+0.20 and position[2] > room_aabb[1]+0.20 
+            and position[0] < room_aabb[2]-0.20 and position[2] < room_aabb[3]-0.20
         ):
             return True
 
