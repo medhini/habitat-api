@@ -235,10 +235,10 @@ def get_mp3d_scenes(split: str = "test", scene_template: str = "{scene}") -> Lis
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--seed', default=73, type=int)
-    parser.add_argument('--count-points', default=4000000, type=int)
-    parser.add_argument('--split', default="train", type=str)
+    parser.add_argument('--count-points', default=2000, type=int)
+    parser.add_argument('--split', default="test", type=str)
     parser.add_argument('--output-path',
-                        default="/private/home/medhini/navigation-analysis-habitat/habitat-api/data/datasets/roomnav/mp3d/v1/train/train_all",
+                        default="/private/home/medhini/navigation-analysis-habitat/habitat-api/data/datasets/roomnav/mp3d/v1/test/test_all",
                         type=str)
     parser.add_argument('-g', '--gpu', default=0, type=int)
     parser.add_argument('--scene-path', type=str,
@@ -257,7 +257,7 @@ def main():
 
     config = habitat.get_config(config_paths='tasks/pointnav_pointnav_mp3d.yaml')
     config.defrost()
-    config.DATASET.DATA_PATH = 'mp3d_dummy/train/train.json.gz'
+    config.DATASET.DATA_PATH = 'mp3d_dummy/test/test.json.gz'
     config.DATASET.SCENES_DIR = '/private/home/medhini/navigation-analysis-habitat/habitat-api/data/scene_datasets/'
     config.freeze()
 
