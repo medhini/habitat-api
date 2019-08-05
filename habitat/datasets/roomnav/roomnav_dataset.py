@@ -43,6 +43,8 @@ class RoomNavDatasetV1(Dataset):
         episodes.
         """
         assert RoomNavDatasetV1.check_config_paths_exist(config)
+
+        print('SCENES:', config.DATA_PATH.format(split=config.SPLIT))
         dataset_dir = os.path.dirname(
             ROOT_DIR + config.DATA_PATH.format(split=config.SPLIT)
         )
