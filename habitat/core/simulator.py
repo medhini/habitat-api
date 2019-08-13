@@ -31,9 +31,6 @@ class _DefaultSimulatorActions(Enum):
     MOVE_FORWARD = 1
     TURN_LEFT = 2
     TURN_RIGHT = 3
-    LOOK_UP = 4
-    LOOK_DOWN = 5
-
 
 @attr.s(auto_attribs=True, slots=True)
 class SimulatorActionsSingleton(metaclass=Singleton):

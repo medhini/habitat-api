@@ -238,7 +238,7 @@ def main():
     parser.add_argument('--count-points', default=40, type=int)
     parser.add_argument('--split', default="val", type=str)
     parser.add_argument('--output-path',
-                        default="/private/home/medhini/navigation-analysis-habitat/habitat-api/data/datasets/roomnav/mp3d/v1/val_mini/val_mini_all",
+                        default="/private/home/medhini/navigation-analysis-habitat/habitat-api/data/datasets/roomnav/mp3d/v1/val_mini/val_mini",
                         type=str)
     parser.add_argument('-g', '--gpu', default=0, type=int)
     parser.add_argument('--scene-path', type=str,

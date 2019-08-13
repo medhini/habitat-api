@@ -77,6 +77,11 @@ _C.TASK.SPL.SUCCESS_DISTANCE = 0.2
 _C.TASK.ROOMNAVMETRIC = CN()
 _C.TASK.ROOMNAVMETRIC.TYPE = "RoomNavMetric"
 # -----------------------------------------------------------------------------
+# # ORACLE MEASUREMENT
+# -----------------------------------------------------------------------------
+_C.TASK.ORACLEACTION = CN()
+_C.TASK.ORACLEACTION.TYPE = "OracleAction"
+# -----------------------------------------------------------------------------
 # # TopDownMap MEASUREMENT
 # -----------------------------------------------------------------------------
 _C.TASK.TOP_DOWN_MAP = CN()
