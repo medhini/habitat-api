@@ -40,8 +40,9 @@ def _ratio_sample_rate(ratio: float, ratio_threshold: float) -> float:
     return 20 * (ratio - 0.98) ** 2
 
 def nearest_point_in_room(sim, start_position, target_positon, room_aabb):
-    x_axes = np.arange(room_aabb[0]+0.2, room_aabb[2]-0.2, 1.0)
-    y_axes = np.arange(room_aabb[1]+0.2, room_aabb[3]-0.2, 1.0)
+    assert(room_aabb[1]+1.0 < room_aabb[3]-1.0 and room_aabb[0]+0.10 < room_aabb[2]-0.10)
+    x_axes = np.arange(room_aabb[0]+0.1, room_aabb[2]-0.1, 1.0)
+    y_axes = np.arange(room_aabb[1]+0.1, room_aabb[3]-0.1, 1.0)
 
     new_target = None
     
@@ -67,8 +68,9 @@ def is_valid_target(t, regions):
     target_room_type = ''
 
     for region_id, val in regions.items():
+        assert(val['box'][0]+0.1 < val['box'][2]-0.1 and val['box'][1]+0.1 < val['box'][3]-0.1)
         #tigther bounding box room constraints
-        if t[0] > val['box'][0]+0.2 and t[2] > val['box'][1]+0.2 and t[0] < val['box'][2]-0.2 and t[2] < val['box'][3]-0.2:
+        if t[0] > val['box'][0]+0.1 and t[2] > val['box'][1]+0.1 and t[0] < val['box'][2]-0.1 and t[2] < val['box'][3]-0.1:
             target_room_id = region_id
             target_room_bb = val['box']
             target_room_type = val['type']
@@ -235,10 +237,10 @@ def get_mp3d_scenes(split: str = "test", scene_template: str = "{scene}") -> Lis
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--seed', default=73, type=int)
-    parser.add_argument('--count-points', default=40, type=int)
+    parser.add_argument('--count-points', default=900, type=int)
     parser.add_argument('--split', default="val", type=str)
     parser.add_argument('--output-path',
-                        default="/private/home/medhini/navigation-analysis-habitat/habitat-api/data/datasets/roomnav/mp3d/v1/val_mini/val_mini",
+                        default="/private/home/medhini/navigation-analysis-habitat/habitat-api/data/datasets/roomnav/mp3d/v1/val/val_all",
                         type=str)
     parser.add_argument('-g', '--gpu', default=0, type=int)
     parser.add_argument('--scene-path', type=str,
@@ -263,7 +265,7 @@ def main():
 
     env = habitat.Env(config=config)
 
-    roomnav_scenes = {'val':4, 'train':32, 'test':10}
+    roomnav_scenes = {'val':3, 'train':32, 'test':10}
 
     for i in range(len(env.episodes)):
         obs = env.reset()
@@ -272,7 +274,7 @@ def main():
 
         print('SCENE PATH used:', env.sim.config.SCENE, env.current_episode.scene_id)
 
-        if env.sim.config.SCENE.split('/')[-1] in ['8194nk5LbLH.glb', 'B6ByNegPMKs.glb', 'ZMojNkEp431.glb']:
+        if env.sim.config.SCENE.split('/')[-1] in ['8194nk5LbLH.glb', 'B6ByNegPMKs.glb', 'ZMojNkEp431.glb', 'X7HyMhZNoso.glb']:
             print('FAULTY SCENE PATH:', env.sim.config.SCENE)
             continue
 

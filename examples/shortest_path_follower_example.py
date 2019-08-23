@@ -58,7 +58,7 @@ def draw_top_down_map(info, heading, output_size):
 
 
 def shortest_path_example(mode):
-    config = habitat.get_config(config_paths="tasks/roomnav_roomnav_mp3d.yaml")
+    config = habitat.get_config(config_paths="tasks/pointnav_roomnav_mp3d.yaml")
     config.TASK.MEASUREMENTS.append("TOP_DOWN_MAP")
     config.TASK.SENSORS.append("HEADING_SENSOR")
     env = SimpleRLEnv(config=config)
@@ -69,7 +69,7 @@ def shortest_path_example(mode):
     follower.mode = mode
 
     print("Environment creation successful")
-    for episode in range(3):
+    for episode in range(7):
         env.reset()
         dirname = os.path.join(
             IMAGE_DIR, "shortest_path_example", mode, "%02d" % episode
@@ -83,9 +83,7 @@ def shortest_path_example(mode):
             best_action = follower.get_next_action(
                 env.habitat_env.current_episode.goals[0].position
             )
-            print(best_action)
             observations, reward, done, info = env.step(best_action)
-            sys.exit(0)
             im = observations["rgb"]
             top_down_map = draw_top_down_map(
                 info, observations["heading"], im.shape[0]

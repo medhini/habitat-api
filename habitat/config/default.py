@@ -66,6 +66,16 @@ _C.TASK.PROXIMITY_SENSOR.MAX_DETECTION_RADIUS = 2.0
 _C.TASK.EPO_GPS_AND_COMPASS = CN()
 _C.TASK.EPO_GPS_AND_COMPASS.TYPE = "EpisodicGPSAndCompassSensor"
 # -----------------------------------------------------------------------------
+# # Agent Position SENSOR
+# -----------------------------------------------------------------------------
+_C.TASK.AGENT_POSITION = CN()
+_C.TASK.AGENT_POSITION.TYPE = "AgentPositionSensor"
+# -----------------------------------------------------------------------------
+# # Agent Rotation SENSOR
+# -----------------------------------------------------------------------------
+_C.TASK.AGENT_ROTATION = CN()
+_C.TASK.AGENT_ROTATION.TYPE = "AgentRotationSensor"
+# -----------------------------------------------------------------------------
 # # SPL MEASUREMENT
 # -----------------------------------------------------------------------------
 _C.TASK.SPL = CN()

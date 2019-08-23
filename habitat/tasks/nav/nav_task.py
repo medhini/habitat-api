@@ -160,7 +160,7 @@ class EpisodicGPSAndCompassSensor(Sensor):
         return spaces.Box(
             low=np.finfo(np.float32).min,
             high=np.finfo(np.float32).max,
-            shape=(6,),
+            shape=(3,),
             dtype=np.float32,
         )
 
@@ -177,6 +177,58 @@ class EpisodicGPSAndCompassSensor(Sensor):
         trans = np.array([trans[0], trans[2]]).astype(np.float64)
         
         return np.concatenate([theta, trans]).astype(np.float64)
+
+@registry.register_sensor
+class AgentRotationSensor(Sensor):
+    def __init__(self, sim: Simulator, config: Config):
+        self._sim = sim
+        super().__init__(config=config)
+
+    def _get_uuid(self, *args: Any, **kwargs: Any):
+        return "agent_rotation"
+
+    def _get_sensor_type(self, *args: Any, **kwargs: Any):
+        return SensorTypes.POSITION
+
+    def _get_observation_space(self, *args: Any, **kwargs: Any):
+        return spaces.Box(
+            low=np.finfo(np.float32).min,
+            high=np.finfo(np.float32).max,
+            shape=(3,3),
+            dtype=np.float32,
+        )
+
+    def get_observation(self, observations, episode):
+        agent_state = self._sim.get_agent_state()
+        rotation_world_agent = agent_state.rotation
+        
+        return quaternion.as_rotation_matrix(rotation_world_agent)
+
+@registry.register_sensor
+class AgentPositionSensor(Sensor):
+    def __init__(self, sim: Simulator, config: Config):
+        self._sim = sim
+        super().__init__(config=config)
+
+    def _get_uuid(self, *args: Any, **kwargs: Any):
+        return "agent_position"
+
+    def _get_sensor_type(self, *args: Any, **kwargs: Any):
+        return SensorTypes.POSITION
+
+    def _get_observation_space(self, *args: Any, **kwargs: Any):
+        return spaces.Box(
+            low=np.finfo(np.float32).min,
+            high=np.finfo(np.float32).max,
+            shape=(3,),
+            dtype=np.float32,
+        )
+
+    def get_observation(self, observations, episode):
+        agent_state = self._sim.get_agent_state()
+        ref_position = agent_state.position
+        
+        return np.array([ref_position[0], ref_position[1], ref_position[2]]).astype(np.float64)
 
 @registry.register_sensor
 class PointGoalSensor(Sensor):
@@ -234,7 +286,7 @@ class PointGoalSensor(Sensor):
         direction_vector_agent = quaternion_rotate_vector(
             rotation_world_agent.inverse(), direction_vector
         )
-
+        
         if self._goal_format == "POLAR":
             rho, phi = cartesian_to_polar(
                 -direction_vector_agent[2], direction_vector_agent[0]
@@ -718,21 +770,6 @@ class RoomNavMetric(Measure):
     def _get_uuid(self, *args: Any, **kwargs: Any):
         return "roomnavmetric"
 
-    def nearest_point_in_room(self, start_position, target_position, room_aabb):
-        # x_axes = np.arange(room_aabb[0], room_aabb[2], 0.1)
-        # y_axes = np.arange(room_aabb[1], room_aabb[3], 0.1)
-        x_axes = np.arange(room_aabb[0]+0.2, room_aabb[2]-0.2, 1.0)
-        y_axes = np.arange(room_aabb[1]+0.2, room_aabb[3]-0.2, 1.0)
-
-        shortest_distance = 100000.0
-        for i in x_axes:
-            for j in y_axes:
-                if self._sim.is_navigable([i,target_position[1],j]):
-                    dist = self._sim.geodesic_distance(start_position, [i, target_position[1], j])
-                    shortest_distance = min(dist, shortest_distance)
-        
-        return shortest_distance
-
     def reset_metric(self, episode):
         self._previous_position = self._sim.get_agent_state().position.tolist()
         self._start_end_episode_distance = episode.info["geodesic_distance"]
@@ -746,59 +783,29 @@ class RoomNavMetric(Measure):
         )
 
     def in_room(self, position, room_aabb):
+        assert(room_aabb[1] < room_aabb[3] and room_aabb[0] < room_aabb[2])
         if (
-            position[0] > room_aabb[0]+0.20 and position[2] > room_aabb[1]+0.20 
-            and position[0] < room_aabb[2]-0.20 and position[2] < room_aabb[3]-0.20
+            position[0] > room_aabb[0]-0.1 and position[2] > room_aabb[1]-0.1 
+            and position[0] < room_aabb[2]+0.1 and position[2] < room_aabb[3]+0.1
         ):
             return True
 
         return False
-
-    def update_metric(self, episode, action):
-        ep_success = 0
-        current_position = self._sim.get_agent_state().position.tolist()
-
-        distance_to_target = self._sim.geodesic_distance(
-            current_position, episode.goals[0].position
-        )
-
-        if (
-            action == self._sim.index_stop_action
-            and distance_to_target < 0.5
-        ):
-            ep_success = 1
-
-        self._agent_episode_distance += self._euclidean_distance(
-            current_position, self._previous_position
-        )
-
-        self._previous_position = current_position
-
-        self._metric = ep_success * (
-            self._start_end_episode_distance
-            / max(
-                self._start_end_episode_distance, self._agent_episode_distance
-            )
-        )
 
     # def update_metric(self, episode, action):
     #     ep_success = 0
     #     current_position = self._sim.get_agent_state().position.tolist()
 
     #     distance_to_target = self._sim.geodesic_distance(
-    #         current_position, episode.goals[0].position)
-    #     # print("ROOM GOAL AABB:", episode.goals[0].room_aabb)
-    #     # if (
-    #     #     action == self._sim.index_stop_action
-    #     #     and self.in_room(current_position, episode.goals[0].room_aabb)
-    #     # ):
-    #     #     ep_success = 1
+    #         current_position, episode.goals[0].position
+    #     )
+
     #     if (
     #         action == self._sim.index_stop_action
-    #         and distance_to_target < 0.1
+    #         and distance_to_target < 0.5
     #     ):
     #         ep_success = 1
-            
+
     #     self._agent_episode_distance += self._euclidean_distance(
     #         current_position, self._previous_position
     #     )
@@ -811,6 +818,30 @@ class RoomNavMetric(Measure):
     #             self._start_end_episode_distance, self._agent_episode_distance
     #         )
     #     )
+
+    def update_metric(self, episode, action):
+        ep_success = 0
+        current_position = self._sim.get_agent_state().position.tolist()
+
+        # print("ROOM GOAL AABB:", episode.goals[0].room_aabb)
+        if (
+            action == self._sim.index_stop_action
+            and self.in_room(current_position, episode.goals[0].room_aabb)
+        ):
+            ep_success = 1
+            
+        self._agent_episode_distance += self._euclidean_distance(
+            current_position, self._previous_position
+        )
+
+        self._previous_position = current_position
+
+        self._metric = ep_success * (
+            self._start_end_episode_distance
+            / max(
+                self._start_end_episode_distance, self._agent_episode_distance
+            )
+        )
 
 @registry.register_measure
 class Collisions(Measure):
@@ -912,6 +943,7 @@ class TopDownMap(Measure):
                 self._coordinate_max,
                 self._map_resolution,
             )
+
             top_down_map[
                 t_x - point_padding : t_x + point_padding + 1,
                 t_y - point_padding : t_y + point_padding + 1,
